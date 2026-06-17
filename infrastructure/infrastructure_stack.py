@@ -77,8 +77,8 @@ class InfrastructureStack(Stack):
             timeout=Duration.seconds(30),
             environment={
                 "DYNAMODB_TABLE": fraud_table.table_name,
-                "SENDER_EMAIL": os.getenv("SENDER_EMAIL", "fraud@example.com"),
-                "RECIPIENT_EMAIL": os.getenv("RECIPIENT_EMAIL", "customer@example.com"),
+                "SENDER_EMAIL": os.getenv("SENDER_EMAIL", "paige.kobzar@gmail.com"),
+                "RECIPIENT_EMAIL": os.getenv("RECIPIENT_EMAIL", "paige.kobzar@gmail.com"),
             }
         )
 

@@ -74,19 +74,18 @@ def send_email_alert(transaction_id: str, account_id: str, amount: float, reason
     
     #Send an email via Amazon SES alerting that a transaction was flagged
     
-    subject = f"Fraud Alert: Suspicious Transaction Detected on Account {account_id}"
+    subject = f"(TEST) DEMO Fraud Alert: Suspicious Transaction Detected on Account {account_id}"
 
     body = f"""
-    A suspicious transaction has been flagged on your account.
+    Demo Alert: A suspicious transaction has been flagged on your account.
 
     Transaction ID: {transaction_id}
     Account ID:     {account_id}
     Amount:         ${amount}
     Reason:         {reason}
 
-    If you did not authorize this transaction, please contact your bank immediately.
-
-    - Fraud Detection System
+    
+    - Paige's Fraud Detection System
     """
 
     ses.send_email(
