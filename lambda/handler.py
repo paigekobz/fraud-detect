@@ -1,0 +1,99 @@
+
+import boto3
+import json
+import os
+from datetime import datetime, timezone
+
+# Initialize AWS clients
+dynamodb = boto3.resource("dynamodb", region_name=os.getenv("AWS_REGION", "us-east-1"))
+ses = boto3.client("ses", region_name=os.getenv("AWS_REGION", "us-east-1"))
+
+DYNAMODB_TABLE = os.getenv("DYNAMODB_TABLE")
+SENDER_EMAIL = os.getenv("SENDER_EMAIL")
+RECIPIENT_EMAIL = os.getenv("RECIPIENT_EMAIL")
+
+
+def handler(event, context):
+   
+    #'event' contains the SQS messages.
+    #'context' contains Lambda runtime info 
+    
+    records = event.get("Records", [])
+
+    for record in records:
+        # "body" field in SQS is JSON string
+        # Deserialize back into Python dictionary
+        body = json.loads(record["body"])
+
+        transaction_id = body["transaction_id"]
+        account_id = body["account_id"]
+        amount = body["amount"]
+        reason = body["reason"]
+        timestamp = body["timestamp"]
+
+        print(f"Processing flagged transaction: {transaction_id} for account {account_id}")
+
+        #Write to DynamoDB
+        try:
+            store_in_dynamodb(transaction_id, account_id, amount, reason, timestamp)
+            print(f"Successfully stored transaction {transaction_id} in DynamoDB")
+        except Exception as e:
+            print(f"Failed to store in DynamoDB: {e}")
+            raise  # Re-raise to trigger Lambda retry logic
+
+        # Send email alert
+        try:
+            send_email_alert(transaction_id, account_id, amount, reason)
+            print(f"Successfully sent alert for transaction {transaction_id}")
+        except Exception as e:
+            # DynamoDB record already saved
+            # don't retry the whole message
+            print(f"Failed to send email alert: {e}")
+
+
+def store_in_dynamodb(transaction_id: str, account_id: str, amount: float, reason: str, timestamp: str):
+    
+    #Write flagged transaction to DynamoDB for record keeping
+    
+    table = dynamodb.Table(DYNAMODB_TABLE)
+
+    table.put_item(
+        Item={
+            "transaction_id": transaction_id,   
+            "account_id": account_id,
+            "amount": str(amount),              #cannot store float
+            "reason": reason,
+            "timestamp": timestamp,
+            "flagged_at": datetime.now(timezone.utc).isoformat(),
+            "status": "flagged"
+        }
+    )
+
+
+def send_email_alert(transaction_id: str, account_id: str, amount: float, reason: str):
+    
+    #Send an email via Amazon SES alerting that a transaction was flagged
+    
+    subject = f"Fraud Alert: Suspicious Transaction Detected on Account {account_id}"
+
+    body = f"""
+    A suspicious transaction has been flagged on your account.
+
+    Transaction ID: {transaction_id}
+    Account ID:     {account_id}
+    Amount:         ${amount}
+    Reason:         {reason}
+
+    If you did not authorize this transaction, please contact your bank immediately.
+
+    - Fraud Detection System
+    """
+
+    ses.send_email(
+        Source=SENDER_EMAIL,
+        Destination={"ToAddresses": [RECIPIENT_EMAIL]},
+        Message={
+            "Subject": {"Data": subject},
+            "Body": {"Text": {"Data": body}},
+        },
+    )

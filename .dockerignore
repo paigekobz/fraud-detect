@@ -1,0 +1,8 @@
+infrastructure/
+lambda/
+.venv/
+__pycache__/
+*.pyc
+.git/
+.env
+cdk.out/
