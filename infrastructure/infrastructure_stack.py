@@ -102,9 +102,13 @@ class InfrastructureStack(Stack):
                 resources=["*"]
             )
         )
-
+        fraud_lambda.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=["cloudwatch:PutMetricData"],
+                resources=["*"]
+            )
+        )
         # CloudWatch Alarm for fraud volume spike detection
-        # Using SQS queue depth as a proxy for flagged-transaction volume
         
         alarm_topic = sns.Topic(self, "FraudVolumeAlarmTopic")
         alarm_topic.add_subscription(
@@ -113,9 +117,14 @@ class InfrastructureStack(Stack):
 
         fraud_volume_alarm = cloudwatch.Alarm(
             self, "FraudVolumeSpike",
-            metric=fraud_queue.metric_approximate_number_of_messages_visible(),
+            metric=cloudwatch.Metric(
+                namespace="FraudDetection",
+                metric_name="FlaggedTransactions",
+                statistic="Sum",
+                period=Duration.minutes(5),
+            ),
             threshold=5,
             evaluation_periods=1,
-            alarm_description="Triggered when more than 5 flagged transactions are queued at once, suggesting a potential spike in fraud",
+            alarm_description="Triggers when more than 5 transactions are flagged within a 5-minute window",
         )
         fraud_volume_alarm.add_alarm_action(cw_actions.SnsAction(alarm_topic))
