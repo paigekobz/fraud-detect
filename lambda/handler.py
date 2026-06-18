@@ -76,7 +76,7 @@ def store_in_dynamodb(transaction_id: str, account_id: str, amount: float, reaso
 def publish_fraud_metric():
 
     #Push a count of 1 to CloudWatch each time a transaction is flagged
-    #Volume alarm sums this over a 10-min window to catch a spike
+    #Volume alarm sums this over 5-min window to catch a spike
 
     cloudwatch.put_metric_data(
         Namespace="FraudDetection",
