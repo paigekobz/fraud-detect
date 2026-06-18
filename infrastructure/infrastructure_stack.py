@@ -11,6 +11,10 @@ from aws_cdk import (
     aws_dynamodb as dynamodb,
     aws_iam as iam,
     aws_ecr_assets as ecr_assets,
+    aws_cloudwatch as cloudwatch,
+    aws_cloudwatch_actions as cw_actions,
+    aws_sns as sns,
+    aws_sns_subscriptions as subscriptions,
 )
 from constructs import Construct
 import os
@@ -77,8 +81,8 @@ class InfrastructureStack(Stack):
             timeout=Duration.seconds(30),
             environment={
                 "DYNAMODB_TABLE": fraud_table.table_name,
-                "SENDER_EMAIL": os.getenv("SENDER_EMAIL", "paige.kobzar@gmail.com"),
-                "RECIPIENT_EMAIL": os.getenv("RECIPIENT_EMAIL", "paige.kobzar@gmail.com"),
+                "SENDER_EMAIL": "paige.kobzar@gmail.com",
+                "RECIPIENT_EMAIL": "paige.kobzar@gmail.com",
             }
         )
 
@@ -98,3 +102,20 @@ class InfrastructureStack(Stack):
                 resources=["*"]
             )
         )
+
+        # CloudWatch Alarm for fraud volume spike detection
+        # Using SQS queue depth as a proxy for flagged-transaction volume
+        
+        alarm_topic = sns.Topic(self, "FraudVolumeAlarmTopic")
+        alarm_topic.add_subscription(
+            subscriptions.EmailSubscription(os.environ["RECIPIENT_EMAIL"])
+        )
+
+        fraud_volume_alarm = cloudwatch.Alarm(
+            self, "FraudVolumeSpike",
+            metric=fraud_queue.metric_approximate_number_of_messages_visible(),
+            threshold=5,
+            evaluation_periods=1,
+            alarm_description="Triggered when more than 5 flagged transactions are queued at once, suggesting a potential spike in fraud",
+        )
+        fraud_volume_alarm.add_alarm_action(cw_actions.SnsAction(alarm_topic))
