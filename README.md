@@ -24,13 +24,13 @@ SQS decouples the two components — the API responds to the customer immediatel
 
 Three rule-based checks evaluated in sequence, with the first rule to fire determining the outcome.
 
-**Rule 1 — Large withdrawal threshold**
+**Rule 1: Large withdrawal threshold**
 Any withdrawal over $10,000 is flagged. The threshold is defined as a named constant rather than hardcoded inline, making it easy to adjust. In production this would likely be configurable per customer or per institution.
 
-**Rule 2 — Location/Geographic velocity**
+**Rule 2: Location/Geographic velocity**
 If the same account transacts from two different locations within 30 minutes, it gets flagged, intended to catch stolen card usage across regions. The current implementation tracks recent transactions in-memory. In production this could use a shared cache like Redis to work correctly across multiple instances and survive container restarts.
 
-**Rule 3 — Failed login attempts**
+**Rule 3: Failed login attempts**
 More than 3 failed logins before a transaction triggers a flag, simulating a brute-force login followed by an immediate transaction attempt.
 
 
@@ -129,7 +129,7 @@ Content-Type: application/json
 | timestamp | datetime | yes | ISO 8601 format |
 | failed_login_attempts | integer | no | defaults to 0 |
 
-**Response — approved**
+**Response: approved**
 ```json
 {
   "transaction_id": "d40f7410-d0af-4def-8917-4a04fa5c8846",
@@ -141,7 +141,7 @@ Content-Type: application/json
 }
 ```
 
-**Response — flagged**
+**Response: flagged**
 ```json
 {
   "transaction_id": "678d37ea-c44c-4d5c-b7ae-02d8166310ed",
